@@ -1,7 +1,10 @@
 from django.shortcuts import render, get_object_or_404
 from django.http import Http404
-from .models import Contato
+from django.db.models import Q, Value
 from django.core.paginator import Paginator
+from django.db.models.functions import Concat
+
+from .models import Contato
 
 
 def index(request):
@@ -17,6 +20,26 @@ def index(request):
         'contatos': contatos
     })
 
+def busca(request):
+    termo = request.GET.get('termo')
+    campos = Concat('nome', Value(' '), 'sobrenome')
+
+    if termo is None:
+        raise Http404
+
+    contatos = Contato.objects.annotate(
+        nome_completo=campos
+    ).filter(Q(nome_completo__icontains=termo) | Q(telefone__icontains=termo))
+
+    paginator = Paginator(contatos, 2)
+
+    page_number = request.GET.get('p')
+    contatos = paginator.get_page(page_number)
+
+    return render(request, 'contatos/busca.html', {
+        'contatos': contatos
+    })
+
 
 def ver_contato(request, contato_id):
     #  contato = Contato.objects.get(id=contato_id)
@@ -28,3 +51,5 @@ def ver_contato(request, contato_id):
     return render(request, 'contatos/ver_contato.html', {
         'contato': contato
     })
+
+
